@@ -1,0 +1,364 @@
+<html>
+<head>
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="js/keymaster.js"></script>
+<script src="js/keymaster.sequence.min.js"></script>
+<link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+<link href="flatui/bootstrap/css/bootstrap.css" rel="stylesheet">
+<link href="flatui/css/flat-ui.css" rel="stylesheet">
+<script src="flatui/js/jquery.tagsinput.js"></script>
+
+<style>
+body {
+	font-family: 'roboto';
+}
+
+textarea {
+	width: 500px;
+	height: 200px;
+}
+
+.row {
+	margin-top: 15px;
+	margin-bottom: 15px;
+}
+
+.bill {
+	width: 6px;
+	height: 2em;
+	background-color: rgb(241, 93, 87);
+	display: inline-block;
+	vertical-align: top;
+	position: relative;
+	box-shadow: 0px 1px 1px rgb(136, 136, 136);
+	margin: 0 0.2em
+}
+
+#splitBox .bill .right-arrow,
+#splitBox .bill .left-arrow {
+	position: absolute;
+	bottom: -1em;
+	font-weight: 700;
+	background-color: rgb(241, 93, 87);
+	cursor: pointer;
+	display: none;
+	padding: 0 4px;
+	box-shadow: 0px 1px 1px rgb(241, 93, 87);
+	line-height: 1.5em;
+}
+
+#splitBox .bill:hover span {
+	display: inline-block;
+}
+
+#splitBox .bill .right-arrow {
+	right: -0.9em;
+	border-radius: 0 3px 3px 0;
+}
+
+#splitBox .bill .left-arrow {
+	left: -0.9em;
+	border-radius: 3px 0 0 3px;
+}
+
+#splitBox .bill[data-actived='1'] {
+	background-color: blue;
+}
+
+#splitBox .bill[data-actived='1']  span {
+	display: inline-block;
+}
+
+#splitBox {
+	word-wrap: break-word;
+	line-height: 2em;
+}
+
+#splitBox span {
+	display: inline-block;
+	padding: 0 0.1em
+}
+
+#splitBox span[color='0'] {
+	background-color: rgb(167, 167, 167);;
+}
+
+#splitBox span[color='1'] {
+	background-color: rgb(219, 217, 217);;
+}
+
+.tip {
+	color: #bbb;
+}
+
+#preview p[extraText='true'] {
+	color: red;
+}
+
+.tweet {
+	font-size: 1.1em;
+	width: 500px;
+	border: 1px solid #9c9c9c;
+	border-radius: 7px;
+	padding: 0.5em;
+	box-shadow: 1px 1px 5px rgb(185, 185, 185);
+	background-color: #f1f1f1;
+	margin: 0.5em 0;
+}
+
+.tweet .tweet-length {
+	color: #9c9c9c;
+}
+
+.tweet iframe {
+	float: right;
+}
+
+.footbar {
+	text-align: center;
+	color: #9c9c9c;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	border-top: 1px solid #aaa;
+	background-color: #f1f1f1;
+	margin: 0;
+}
+
+</style>
+<script type="text/javascript">
+	var text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+
+
+	var mosueIsDown = false;
+
+	function loadPreview() {
+		var part = [];
+		var firstBill = $('#splitBox > .bill').first();
+		var partsCounter = $('#splitBox .bill').length-1;
+		var partIndex = 1;
+		var extraText;
+
+		$('#preview').empty();
+
+		for( var i=0; i<partsCounter; i++ ) {
+			var  text = firstBill.nextUntil('.bill').map( function(i,e) { 
+				$(e).attr('color',partIndex%2);
+				return $(e).text() ;
+			}).toArray().join(' ');
+
+
+			firstBill = firstBill.nextAll('.bill').first();
+
+			text += ' (' + partIndex + '/' + partsCounter + ') ' + getHashtags();
+			
+			extraText = (text.length > 140 );
+
+			var tweetLink = 'https://twitter.com/intent/tweet?text=' + encodeURI(text);
+			var tweetText = $('<p>').attr('extraText',extraText).text(text);
+			var tweetButton = $('<a>').attr('href',tweetLink)
+				.attr('data-count','none')
+				.addClass('twitter-share-button')
+				.text('Tweet');
+			var tweetInfo = $('<span>').addClass('tweet-length').text(140 - text.length);
+
+			$('#preview').append( $('<div>')
+				.addClass('tweet')
+				.append( tweetText )
+				.append( tweetInfo )
+				.append( tweetButton ));
+			partIndex++;
+		}
+
+		twttr.widgets.load();
+
+	}
+
+	function leftButtonClicked() {
+
+		var bill = $(this).parent();
+
+		if( (bill.prevAll('.bill').length==0 && bill.prevUntil('.bill').length == 0) || 
+			(bill.prevAll('.bill').length>0 && bill.prevUntil('.bill').length < 2) )
+			return;
+
+
+		var clone = bill.clone();
+
+		$('#splitBox .bill[data-actived=1]').attr('data-actived','0');
+		clone.attr('data-actived','1');
+
+		clone.click( clickOnBillHandler ).attr('data-actived','1');
+		clone.find('.right-arrow').click( rightButtonClicked );
+		clone.find('.left-arrow').click( leftButtonClicked );
+		bill.prev().before(clone);
+		bill.remove();
+
+		loadPreview();
+	};
+
+	function rightButtonClicked() {
+
+		var bill = $(this).parent();
+
+		if( (bill.nextAll('.bill').length==0 && bill.nextUntil('.bill').length == 0) || 
+			(bill.nextAll('.bill').length>0 && bill.nextUntil('.bill').length < 2) )
+			return;
+
+		var clone = bill.clone();
+
+		$('#splitBox .bill[data-actived=1]').attr('data-actived','0');
+		clone.attr('data-actived','1');
+
+		clone.click( clickOnBillHandler );
+		clone.find('.right-arrow').click( rightButtonClicked );
+		clone.find('.left-arrow').click( leftButtonClicked );
+		bill.next().after(clone);
+		bill.remove();
+
+		loadPreview();
+	};
+
+	function clickOnBillHandler() {
+			var isActive = $(this).attr('data-actived')==='1';
+
+			$('#splitBox .bill[data-actived=1]').attr('data-actived','0');
+
+			if(isActive) {
+				$(this).attr('data-actived','0');
+			}
+			else {
+				$(this).attr('data-actived','1')
+			}
+		}
+
+
+	function getHashtags() {
+		//var t = $('#hash-tags').val().split(',').map( function(tag) {return '#' + tag +' '})
+		//return t.slice(0,-1);
+		return $('#hash-tags').val();
+	}
+
+	function reservedTextLength() {
+		// parts counter format: _(00/00)_
+		return 9 + getHashtags().length;
+	}
+
+	function initText() {
+		$('#splitBox').empty();
+		
+		$('#splitBox').append( $('<span>').addClass('bill') );
+
+		var counter = reservedTextLength(); 
+
+		text.split(' ').forEach( function(word) {
+			if( counter + word.length + 1 > 140 ) {
+				counter = reservedTextLength();
+				$('#splitBox').append( $('<span>').addClass('bill') );
+			}
+			counter += word.length + 1;
+
+			$('#splitBox').append( $('<span>').text(word) );
+		});
+
+		$('#splitBox').append( $('<span>').addClass('bill') );
+
+		loadPreview();
+
+		$('.bill')
+		.append( $('<span>').addClass('right-arrow').html('&gt').click(rightButtonClicked)  )
+		.append( $('<span>').addClass('left-arrow').html('&lt').click(leftButtonClicked) );
+
+		$('.bill').click(clickOnBillHandler);
+	}
+
+	$(function() {
+
+		$('#split-button').click( function() {
+			$('.row').show();
+			text = $('#wholeText').val();
+			initText();
+			document.location = '#splitted-text';
+		})
+		
+		key('right', function(event, handler){
+  			$('#splitBox .bill[data-actived=1] .right-arrow').click();
+		});
+
+		key('left', function(event, handler){
+  			$('#splitBox .bill[data-actived=1] .left-arrow').click();
+		});
+
+		//$("#hash-tags").tagsInput();
+	})
+</script>
+</head>
+<body>
+
+<nav class="navbar navbar-inverse" role="navigation">
+  <div class="navbar-header">
+    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse-01">
+      <span class="sr-only">Toggle navigation</span>
+    </button>
+    <a class="navbar-brand" href="#">Tweet-Spliter</a>
+  </div>
+  <div class="collapse navbar-collapse" id="navbar-collapse-01">
+  </div><!-- /.navbar-collapse -->
+</nav><!-- /navbar -->
+
+<div class="container">
+	<div class="row">
+		<div class="col-md-8">
+			<textarea id='wholeText' class="text-field form-control flat" placeholder='Enter your long text here' rows="5"></textarea>
+			<br/>
+			<input type='text' class="text-field form-control flat" placeholder='#hashtag' id='hash-tags'>
+		</div>
+		<div class="col-md-4">
+			<p class="tip">Enter your long text in above box. You can enter a term in below box. Text which is enter in below box will be repeat in each tweet.</p>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-md-8">
+		<button class="btn btn-primary pull-right" id="split-button">Split</button>
+		</div>
+	</div>
+
+	<div class="row" hidden id='splitted-text'>
+		<div class="col-md-12">
+		<h4>Splitted Text</h4>
+		</div>
+	</div>
+
+	<div class="row" hidden>
+		<div class="col-md-8">
+			<div style="width:500px" id='splitBox'>
+			</div>
+		</div>
+		<div class="col-md-4">
+			<p class="tip">Move spliters by thiers left/right handle or select one of them and use arrow keys</p>
+		</div>
+	</div>
+
+	<div class="row" hidden style="margin-bottom: 3em;">
+		<div class="col-md-8">
+			<h4>Preview</h4>
+			<div id="preview">
+			</div>
+		</div>
+		<div class="col-md-4">
+			<p class="tip">
+				You can preview splitted tweet here. Tweets which have more than 140 characters will be red. Be sure no tweet is red.
+			</p>
+		</div>
+	</div>
+
+
+	<p class="footbar">All rights is reserved by Marblzz - 2014</p>
+
+</div>
+
+	<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+</body>
+</html>
